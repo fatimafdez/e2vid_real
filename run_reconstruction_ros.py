@@ -59,44 +59,29 @@ class E2VID_ROS:
             # Conversion ROS message to a numpy array
             #print(data)
         event_array = np.array(data.events)
-        print('Event Array Shape:', event_array.shape)
-        event_array = event_array.reshape((-1, 4))  # Reshape to 2D array
+        #print('Event Array Shape:', event_array.shape)
+        #event_array = event_array.reshape((-1, 4))  # Reshape to 2D array
         ts_list = []
         x_list = []
         y_list = []
         polarity_list = []
 
-        #ts_list = event_array[:, 0].tolist()       # Extract timestamps
-        #x_list = event_array[:, 1].tolist()        # Extract x-coordinates
-        #y_list = event_array[:, 2].tolist()        # Extract y-coordinates
-        #polarity_list = event_array[:, 3].tolist() # Extract polarities
-        #print('prueba5')
+        #print(event_array)
+        #print(event_array[0])
 
-        #for i in range(0, self.event_window_size):
-        #    ts_list.append(event_array[0])
-        #    x_list.append(event_array[1])
-        #    y_list.append(event_array[2])
-        #    polarity_list.append(event_array[3])
+        for i in range(0, len(event_array)):
+            ts_list.append(event_array[i].ts.to_sec())
+            x_list.append(event_array[i].x)
+            y_list.append(event_array[i].y)
+            polarity_list.append(event_array[i].polarity)
 
-        #Intento 1
-        ts_list[i] = event_array(0)
-        x_list[i] = event_array(1)
-        y_list[i] = event_array(2)
-        polarity_list[i] = event_array(3)
-
-        #Intento 2
-        # if i < len(event_array):
-        #     ts_list.append(event_array[i, 0])
-        #     x_list.append(event_array[i, 1])
-        #     y_list.append(event_array[i, 2])
-        #     polarity_list.append(event_array[i, 3])
-        # else:
-        #     ts_list.append(0)
-        #     x_list.append(0)
-        #     y_list.append(0)
-        #     polarity_list.append(0)
-
+        #    ts_list[i] = event_array(0)
+        #    x_list[i] = event_array(1)
+        #    y_list[i] = event_array(2)
+        #    polarity_list[i] = event_array(3)
             
+     
+        self.event_window = np.ones((4, len(ts_list)), dtype=np.float64)
         # Update the self.event_window using the extracted information
         self.event_window[0, :] = ts_list
         self.event_window[1, :] = x_list
@@ -105,7 +90,7 @@ class E2VID_ROS:
         last_timestamp = self.event_window[0, -1]
         self.last_timestamp = last_timestamp  # Update the instance variable
 
-        print('prueba6')
+        #print('prueba6')
          
     # Callback function to publish reconstructed image
     def publish_reconstructed_image(self):
@@ -118,10 +103,18 @@ class E2VID_ROS:
                                                     height=self.height,
                                                     device=self.device)
         print('prueba7')
+        
         num_events_in_window = self.event_window.shape[0]
             
+        #print('out type:', type(out))
+        #print('out shape:', out.shape)
+
+        # event_tensor = np.array(event_tensor)
         out = self.reconstructor.update_reconstruction(event_tensor, start_index + num_events_in_window, self.last_timestamp)
-                
+        # if isinstance(out, torch.Tensor):
+        # out = out.numpy()
+        # print(out)
+        # self.reconstructor.
         reconstructed_image = self.bridge.cv2_to_imgmsg(out, encoding="passthrough")
         reconstructed_image.header.stamp = rospy.Time(self.last_timestamp)
         reconstructed_image.header.frame_id = self.camera_link
