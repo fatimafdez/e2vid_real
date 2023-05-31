@@ -58,12 +58,13 @@ class ImageReconstructor:
 
     def update_reconstruction(self, event_tensor, event_tensor_id, stamp=None):
         with torch.no_grad():
+            with CudaTimer('Reconstruction'):
 
+                with CudaTimer('NumPy (CPU) -> Tensor (GPU)'):
+                    events = event_tensor.unsqueeze(dim=0)
+                    events = events.to(self.device)
 
-            events = event_tensor.unsqueeze(dim=0)
-            events = events.to(self.device)
-
-            events = self.event_preprocessor(events)
+                events = self.event_preprocessor(events)
 
             # Resize tensor to [1 x C x crop_size x crop_size] by applying zero padding
             events_for_each_channel = {'grayscale': self.crop.pad(events)}
@@ -76,7 +77,8 @@ class ImageReconstructor:
 
             # Reconstruct new intensity image for each channel (grayscale + RGBW if color reconstruction is enabled)
             for channel in events_for_each_channel.keys():
-                new_predicted_frame, states = self.model(events_for_each_channel[channel],
+                with CudaTimer('Inference'):
+                    new_predicted_frame, states = self.model(events_for_each_channel[channel],
                                                                 self.last_states_for_each_channel[channel])
 
                 if self.no_recurrent:
@@ -93,7 +95,8 @@ class ImageReconstructor:
                 # Intensity rescaler (on GPU)
                 new_predicted_frame = self.intensity_rescaler(new_predicted_frame)
 
-                reconstructions_for_each_channel[channel] = new_predicted_frame[0, 0, crop.iy0:crop.iy1,
+                with CudaTimer('Tensor (GPU) -> NumPy (CPU)'):
+                    reconstructions_for_each_channel[channel] = new_predicted_frame[0, 0, crop.iy0:crop.iy1,
                                                                                     crop.ix0:crop.ix1].cpu().numpy()
 
             if self.perform_color_reconstruction:
@@ -108,19 +111,4 @@ class ImageReconstructor:
             # cv2.waitKey(1)
             # self.image_writer(out, event_tensor_id, stamp, events=events)
             # self.image_display(out, events)
-
-
-            #with CudaTimer('Reconstruction'):
-
-             #   with CudaTimer('NumPy (CPU) -> Tensor (GPU)'):
-             #       events = event_tensor.unsqueeze(dim=0)
-             #       events = events.to(self.device)
-
-              #  events = self.event_preprocessor(events)
-
-
-               #     with CudaTimer('Tensor (GPU) -> NumPy (CPU)'):
-                #        reconstructions_for_each_channel[channel] = new_predicted_frame[0, 0, crop.iy0:crop.iy1,
-                 #                                                                       crop.ix0:crop.ix1].cpu().numpy()
-
 
