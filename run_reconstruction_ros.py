@@ -20,7 +20,7 @@ class E2VID_ROS:
 
         self.width = 640
         self.height = 480
-        self.event_window_size = 1000
+        self.event_window_size = 100000
         self.camera_link = "camera_link"
         self.event_window = np.ones((4, self.event_window_size))
         print('Sensor size: {} x {}'.format(self.width, self.height))
